@@ -4,6 +4,7 @@ from __future__ import annotations
 import getpass
 import logging
 import sys
+from dataclasses import replace
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, timedelta
 
@@ -148,12 +149,25 @@ class Controller(QObject):
         self.settings = settings
         self.store.save(settings)
 
+    def _google_connected(self, credentials: str, calendar_id: str) -> None:
+        """Salvato subito: vale anche se la finestra Impostazioni è già stata chiusa."""
+        previous = self.settings.gcal_calendar_id
+        self._save_settings(replace(self.settings, gcal_credentials=credentials,
+                                    gcal_calendar_id=calendar_id, gcal_enabled=True))
+        if previous != calendar_id:
+            self.repo.clear_gcal()
+        logging.info("Account Google collegato")
+        self.tray.showMessage("Google Calendar", "Collegato: copio i promemoria nel calendario «Promemoria»…",
+                              QSystemTrayIcon.MessageIcon.Information, 6000)
+        self.gsync.schedule(500)
+
     def _gcal_error(self, message: str) -> None:
         self.tray.showMessage("Google Calendar", message,
                               QSystemTrayIcon.MessageIcon.Warning, 10000)
 
     def open_settings(self) -> None:
-        dialog = SettingsDialog(self.settings, self.window if self.window.isVisible() else None)
+        dialog = SettingsDialog(self.settings, self.window if self.window.isVisible() else None,
+                                on_google_connected=self._google_connected)
         if dialog.exec() and dialog.result_settings:
             previous = self.settings
             self.settings = dialog.result_settings

@@ -1,9 +1,12 @@
 """Scheda Impostazioni → Google Calendar: credenziali, collegamento account, opzioni."""
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from pathlib import Path
+from typing import Callable
 
+import shiboken6
 from PySide6.QtCore import QTimeZone, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QPushButton, QWidget,
@@ -32,6 +35,10 @@ GUIDE = (
 )
 
 
+log = logging.getLogger(__name__)
+OnConnected = Callable[[str, str], None]
+
+
 def system_timezone() -> str:
     return bytes(QTimeZone.systemTimeZoneId()).decode() or "UTC"
 
@@ -39,9 +46,12 @@ def system_timezone() -> str:
 class GoogleTab(QWidget):
     status = Signal(str)  # messaggi per la barra di stato del dialog
 
-    def __init__(self, settings: Settings, data_dir: Path | None = None) -> None:
+    def __init__(self, settings: Settings, data_dir: Path | None = None,
+                 on_connected: OnConnected | None = None) -> None:
         super().__init__()
         self._data_dir = data_dir or default_data_dir()
+        # salva l'accesso subito, anche se nel frattempo la finestra viene chiusa
+        self._on_connected_persist = on_connected
         self._credentials = settings.gcal_credentials
         self._calendar_id = settings.gcal_calendar_id
         self._busy = False
@@ -130,6 +140,12 @@ class GoogleTab(QWidget):
         run_in_thread(work, self._on_connected)
 
     def _on_connected(self, result, error: str) -> None:
+        if error:
+            log.warning("Collegamento Google non riuscito: %s", error)
+        elif self._on_connected_persist:
+            self._on_connected_persist(*result)
+        if not shiboken6.isValid(self):
+            return  # finestra Impostazioni già chiusa
         self._busy = False
         if error:
             self.status.emit(f"❌ {error}")

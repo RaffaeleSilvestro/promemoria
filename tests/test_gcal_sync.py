@@ -114,3 +114,18 @@ def test_errors_are_rate_limited(env):
     google.fail_with = ""
     sync.sync_now()
     assert len(repo.gcal_map()) == 1
+
+
+def test_google_tab_persists_even_if_closed(monkeypatch, tmp_path):
+    from promemoria.ui import google_tab
+
+    saved = []
+    tab = google_tab.GoogleTab(Settings(), data_dir=tmp_path, on_connected=lambda c, cal: saved.append((c, cal)))
+    callbacks = []
+    monkeypatch.setattr(google_tab, "run_in_thread", lambda fn, done: callbacks.append(done))
+    (tmp_path / "google_client.json").write_text('{"installed": {"client_id": "x"}}')
+    tab._connect()
+    import shiboken6
+    shiboken6.delete(tab)  # l'utente chiude le Impostazioni durante il login
+    callbacks[0](("CREDS", "cal-1"), "")
+    assert saved == [("CREDS", "cal-1")]

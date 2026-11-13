@@ -35,7 +35,8 @@ class _Job(QRunnable):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, settings: Settings, parent: QWidget | None = None) -> None:
+    def __init__(self, settings: Settings, parent: QWidget | None = None,
+                 on_google_connected=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Impostazioni")
         self.setMinimumWidth(520)
@@ -47,7 +48,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(self._email_tab(settings), "Email")
         tabs.addTab(self._telegram_tab(settings), "Telegram")
         tabs.addTab(self._general_tab(settings), "Generali")
-        self.google_tab = GoogleTab(settings)
+        self.google_tab = GoogleTab(settings, on_connected=on_google_connected)
         tabs.addTab(self.google_tab, "Google Calendar")
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save
