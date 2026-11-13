@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from ..core import notify
 from ..core.settings import Settings
+from .google_tab import GoogleTab
 
 
 class _Result(QObject):
@@ -46,6 +47,8 @@ class SettingsDialog(QDialog):
         tabs.addTab(self._email_tab(settings), "Email")
         tabs.addTab(self._telegram_tab(settings), "Telegram")
         tabs.addTab(self._general_tab(settings), "Generali")
+        self.google_tab = GoogleTab(settings)
+        tabs.addTab(self.google_tab, "Google Calendar")
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save
                                    | QDialogButtonBox.StandardButton.Cancel)
@@ -56,6 +59,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(tabs)
         self.status = QLabel("")
+        self.google_tab.status.connect(self.status.setText)
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         layout.addWidget(buttons)
@@ -154,7 +158,7 @@ class SettingsDialog(QDialog):
     # ---- azioni -----------------------------------------------------------
     def _current(self) -> Settings:
         cats = tuple(c.strip() for c in self.categories.text().split(",") if c.strip())
-        return replace(
+        updated = replace(
             self._settings,
             smtp_host=self.smtp_host.text().strip(), smtp_port=self.smtp_port.value(),
             smtp_user=self.smtp_user.text().strip(),
@@ -169,6 +173,7 @@ class SettingsDialog(QDialog):
             default_email=self.def_email.isChecked(),
             default_telegram=self.def_tg.isChecked(),
         )
+        return self.google_tab.apply(updated)
 
     def _run(self, fn, on_ok=None) -> None:
         self.status.setText("Operazione in corso…")

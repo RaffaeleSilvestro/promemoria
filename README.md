@@ -81,6 +81,24 @@ python -m pytest
 | Ctrl+, | Impostazioni |
 | Ctrl+Invio | Salva nel modulo |
 
+## Avvisi anche a PC spento (Google Calendar)
+
+Con il PC spento l'app non può inviare nulla. Per ricevere comunque gli avvisi sul telefono,
+attiva la sincronizzazione: ogni promemoria diventa un evento nel calendario **«Promemoria»**
+del tuo Google Calendar, con gli stessi preavvisi, e Google ti avvisa anche a PC spento.
+
+1. Crea un progetto su [Google Cloud](https://console.cloud.google.com/projectcreate).
+2. [Abilita Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com).
+3. [Google Auth Platform](https://console.cloud.google.com/auth/overview): tipo **Esterno**, poi in *Pubblico* → **Pubblica app**
+   (in modalità "Test" Google fa scadere l'accesso ogni 7 giorni).
+4. [Client](https://console.cloud.google.com/auth/clients) → Crea client → **App desktop** → scarica il JSON.
+5. Promemoria → Impostazioni → **Google Calendar** → *Scegli file credenziali* → *Collega account Google* → Salva.
+
+L'app chiede solo il permesso `calendar.app.created`: vede e modifica **solo** il calendario che crea lei,
+mai gli altri tuoi calendari. Le credenziali sono salvate cifrate (DPAPI).
+Le ripetizioni, i preavvisi (max 5 per evento) e l'eventuale email di Google seguono il promemoria;
+Telegram resta inviato solo dall'app sul PC.
+
 ## Barra delle applicazioni e logo
 
 - `python installa.py` crea il logo (stile Promemoria di iPhone) e i collegamenti **Promemoria** sul Desktop e nel menu Start.

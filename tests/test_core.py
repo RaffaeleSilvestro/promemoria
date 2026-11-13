@@ -163,3 +163,26 @@ def test_settings_store_encrypts(tmp_path):
     loaded = store.load()
     assert loaded.smtp_password == "segreto" and loaded.tg_token == "123:ABC"
     assert SettingsStore(tmp_path / "nuova").load() == Settings()
+
+
+def test_gcal_map_survives_reminder_delete(repo):
+    r = repo.add(Reminder("Z", D(2026, 11, 20, 9, 0)))
+    repo.set_gcal(r.id, "ev1", "h1")
+    repo.set_gcal(r.id, "ev1", "h2")
+    assert repo.gcal_map() == {r.id: ("ev1", "h2")}
+    repo.delete(r.id)
+    assert repo.gcal_map() == {r.id: ("ev1", "h2")}  # serve per cancellare l'evento
+    repo.delete_gcal(r.id)
+    assert repo.gcal_map() == {}
+    repo.set_gcal(5, "e", "h")
+    repo.clear_gcal()
+    assert repo.gcal_map() == {}
+
+
+def test_gcal_credentials_encrypted(tmp_path):
+    store = SettingsStore(tmp_path)
+    store.save(Settings(gcal_credentials='{"refresh_token": "RT-SEGRETO"}', gcal_enabled=True,
+                        gcal_calendar_id="cal"))
+    assert "RT-SEGRETO" not in (tmp_path / "settings.json").read_text(encoding="utf-8")
+    loaded = store.load()
+    assert loaded.gcal_ready and "RT-SEGRETO" in loaded.gcal_credentials

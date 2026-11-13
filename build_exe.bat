@@ -7,5 +7,6 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed ^
   --icon promemoria\ui\assets\promemoria.ico ^
   --add-data "promemoria\ui\assets;promemoria\ui\assets" ^
   --hidden-import win32com.shell --hidden-import win32com.propsys ^
+  --collect-submodules google_auth_oauthlib --collect-submodules google.oauth2 ^
   --exclude-module pytest ^
   main.py

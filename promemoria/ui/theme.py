@@ -156,6 +156,7 @@ QPushButton:pressed {{ background: {p.border}; }}
 QPushButton#Primary {{ background: {p.primary}; color: {p.on_primary}; border: none;
     font-weight: 600; }}
 QPushButton#Primary:hover {{ background: {p.primary_hover}; }}
+QPushButton#Primary:disabled {{ background: {p.border}; color: {p.muted}; }}
 QPushButton#Danger {{ color: {p.danger}; }}
 QPushButton#Ghost {{ background: transparent; border: none; color: {p.muted}; }}
 QPushButton#Ghost:hover {{ color: {p.text}; background: {p.surface_alt}; }}

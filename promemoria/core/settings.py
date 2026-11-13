@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import secrets
 
-SECRET_FIELDS = ("smtp_password", "tg_token")
+SECRET_FIELDS = ("smtp_password", "tg_token", "gcal_credentials")
 
 
 def default_data_dir() -> Path:
@@ -33,10 +33,18 @@ class Settings:
     default_sound: bool = False
     default_email: bool = False
     default_telegram: bool = False
+    gcal_enabled: bool = False
+    gcal_email: bool = False  # anche notifiche email da Google
+    gcal_calendar_id: str = ""
+    gcal_credentials: str = ""  # JSON OAuth, cifrato su disco
 
     @property
     def email_ready(self) -> bool:
         return bool(self.smtp_host and self.smtp_user and self.smtp_password and self.email_to)
+
+    @property
+    def gcal_ready(self) -> bool:
+        return bool(self.gcal_enabled and self.gcal_credentials and self.gcal_calendar_id)
 
     @property
     def telegram_ready(self) -> bool:

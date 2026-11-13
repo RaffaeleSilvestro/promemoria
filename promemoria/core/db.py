@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS done (
     occurrence TEXT NOT NULL,
     PRIMARY KEY (reminder_id, occurrence)
 );
+CREATE TABLE IF NOT EXISTS gcal_map (
+    reminder_id INTEGER PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    hash TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS snoozes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     reminder_id INTEGER NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
@@ -211,3 +216,24 @@ class Repository:
             for row in rows:
                 self._conn.execute("DELETE FROM snoozes WHERE id = ?", (row["id"],))
         return [(r["reminder_id"], datetime.strptime(r["occurrence"], KEY_FMT)) for r in rows]
+
+    # ---- Google Calendar ------------------------------------------------------
+    # Nessuna FOREIGN KEY: se un promemoria viene eliminato, la riga resta finché
+    # la sincronizzazione non cancella anche l'evento su Google.
+    def gcal_map(self) -> dict[int, tuple[str, str]]:
+        rows = self._conn.execute("SELECT reminder_id, event_id, hash FROM gcal_map").fetchall()
+        return {r[0]: (r[1], r[2]) for r in rows}
+
+    def set_gcal(self, reminder_id: int, event_id: str, event_hash: str) -> None:
+        with self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO gcal_map VALUES (?, ?, ?)",
+                (reminder_id, event_id, event_hash))
+
+    def delete_gcal(self, reminder_id: int) -> None:
+        with self._conn:
+            self._conn.execute("DELETE FROM gcal_map WHERE reminder_id = ?", (reminder_id,))
+
+    def clear_gcal(self) -> None:
+        with self._conn:
+            self._conn.execute("DELETE FROM gcal_map")

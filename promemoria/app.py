@@ -19,6 +19,7 @@ from .core.models import Due
 from .core.settings import Settings, SettingsStore, default_data_dir
 from .ui import theme
 from .ui.common import AlarmSound, app_icon
+from .ui.gcal_sync import GCalSync
 from .ui.main_window import MainWindow
 from .ui.popup import ReminderPopup
 from .ui.settings_dialog import SettingsDialog
@@ -75,6 +76,10 @@ class Controller(QObject):
         self.window.quit_requested.connect(self.confirm_quit)
         self.window.data_changed.connect(self.tick)
         self._build_tray()
+        self.gsync = GCalSync(self.repo, lambda: self.settings, self._save_settings,
+                              self._gcal_error, self)
+        self.window.data_changed.connect(self.gsync.schedule)
+        self.gsync.schedule(5_000)  # prima sincronizzazione poco dopo l'avvio
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
@@ -139,11 +144,23 @@ class Controller(QObject):
         self.app.quit()
 
     # ---- impostazioni ---------------------------------------------------
+    def _save_settings(self, settings: Settings) -> None:
+        self.settings = settings
+        self.store.save(settings)
+
+    def _gcal_error(self, message: str) -> None:
+        self.tray.showMessage("Google Calendar", message,
+                              QSystemTrayIcon.MessageIcon.Warning, 10000)
+
     def open_settings(self) -> None:
         dialog = SettingsDialog(self.settings, self.window if self.window.isVisible() else None)
         if dialog.exec() and dialog.result_settings:
+            previous = self.settings
             self.settings = dialog.result_settings
             self.store.save(self.settings)
+            if previous.gcal_calendar_id != self.settings.gcal_calendar_id:
+                self.repo.clear_gcal()  # nuovo account/calendario: ricrea tutti gli eventi
+            self.gsync.schedule(500)
             self._apply_theme()
             try:
                 autostart.set_autostart(self.settings.autostart)
