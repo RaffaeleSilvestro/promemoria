@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QButtonGroup, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QButtonGroup, QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QVBoxLayout,
+    QWidget,
 )
 
 from .common import app_icon, category_color
@@ -68,6 +69,8 @@ class Sidebar(QFrame):
     new_requested = Signal()
     settings_requested = Signal()
     quit_requested = Signal()
+    category_rename_requested = Signal(str)
+    category_delete_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -148,6 +151,16 @@ class Sidebar(QFrame):
         self._buttons[key] = btn
         return btn
 
+    def category_menu_actions(self, name: str) -> list[tuple[str, Signal]]:
+        return [("✎  Rinomina categoria…", self.category_rename_requested),
+                ("🗑  Elimina categoria", self.category_delete_requested)]
+
+    def _category_menu(self, button: QPushButton, name: str, pos) -> None:
+        menu = QMenu(self)
+        for label, signal in self.category_menu_actions(name):
+            menu.addAction(label).triggered.connect(lambda _=False, s=signal: s.emit(name))
+        menu.exec(button.mapToGlobal(pos))
+
     def select(self, key: str) -> None:
         btn = self._buttons.get(key) or self._buttons["today"]
         btn.setChecked(True)
@@ -169,6 +182,10 @@ class Sidebar(QFrame):
         for cat in categories:
             btn = self._add_button(f"cat:{cat}", "●", cat, category_color(cat).name())
             btn.set_count(counts.get(cat, 0))
+            btn.setToolTip("Tasto destro per rinominare o eliminare")
+            btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            btn.customContextMenuRequested.connect(
+                lambda pos, b=btn, name=cat: self._category_menu(b, name, pos))
             self._cat_box.addWidget(btn)
         if not categories:
             hint = QLabel("Le categorie che usi\ncompariranno qui")

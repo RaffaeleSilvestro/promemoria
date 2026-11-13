@@ -75,6 +75,8 @@ class Controller(QObject):
         self.window = MainWindow(self.repo, lambda: self.settings)
         self.window.settings_requested.connect(self.open_settings)
         self.window.quit_requested.connect(self.confirm_quit)
+        self.window.categories_renamed.connect(self._rename_settings_category)
+        self._removed_categories: set[str] = set()
         self.window.data_changed.connect(self.tick)
         self._build_tray()
         self.gsync = GCalSync(self.repo, lambda: self.settings, self._save_settings,
@@ -160,6 +162,13 @@ class Controller(QObject):
         self.tray.showMessage("Google Calendar", "Collegato: copio i promemoria nel calendario «Promemoria»…",
                               QSystemTrayIcon.MessageIcon.Information, 6000)
         self.gsync.schedule(500)
+
+    def _rename_settings_category(self, old: str, new: str) -> None:
+        """Tiene allineato l'elenco delle categorie suggerite (Impostazioni → Generali)."""
+        updated = rename_category_list(self.settings.categories, old, new,
+                                       self._removed_categories)
+        if updated != self.settings.categories:
+            self._save_settings(replace(self.settings, categories=updated))
 
     def _gcal_error(self, message: str) -> None:
         self.tray.showMessage("Google Calendar", message,
@@ -282,6 +291,29 @@ def run(argv: list[str] | None = None) -> int:
 
 
 _SERVER_NAME = f"promemoria-{getpass.getuser()}"
+
+
+def rename_category_list(categories: tuple[str, ...], old: str, new: str,
+                         removed: set[str]) -> tuple[str, ...]:
+    """Rinomina/elimina/ripristina una categoria nell'elenco dei suggerimenti.
+
+    old="" significa "Annulla dopo un'eliminazione": la categoria torna solo se
+    era davvero nell'elenco (memorizzato in `removed`).
+    """
+    cats = list(categories)
+    if old and old in cats:
+        i = cats.index(old)
+        if new and new not in cats:
+            cats[i] = new
+        else:
+            cats.pop(i)
+            if not new:
+                removed.add(old)
+    elif not old and new in removed:
+        removed.discard(new)
+        if new not in cats:
+            cats.append(new)
+    return tuple(cats)
 
 
 def _setup_logging() -> None:

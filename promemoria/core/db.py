@@ -173,6 +173,23 @@ class Repository:
                 "UPDATE reminders SET completed = ? WHERE id = ?", (int(completed), reminder_id)
             )
 
+    # ---- categorie ----------------------------------------------------
+    def ids_in_category(self, category: str) -> list[int]:
+        rows = self._conn.execute(
+            "SELECT id FROM reminders WHERE category = ?", (category,)).fetchall()
+        return [r[0] for r in rows]
+
+    def set_category(self, reminder_ids: list[int], category: str) -> int:
+        """Cambia solo la categoria (gli avvisi non vengono riarmati). Ritorna quanti."""
+        if not reminder_ids:
+            return 0
+        marks = ",".join("?" * len(reminder_ids))
+        with self._conn:
+            cur = self._conn.execute(
+                f"UPDATE reminders SET category = ? WHERE id IN ({marks})",
+                (category.strip(), *reminder_ids))
+        return cur.rowcount
+
     # ---- avvisi già inviati ----------------------------------------
     def mark_fired(self, reminder_id: int, occurrence: datetime, offset_min: int) -> bool:
         """True se l'avviso è nuovo (e viene registrato), False se già inviato."""

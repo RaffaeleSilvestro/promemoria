@@ -186,3 +186,21 @@ def test_gcal_credentials_encrypted(tmp_path):
     assert "RT-SEGRETO" not in (tmp_path / "settings.json").read_text(encoding="utf-8")
     loaded = store.load()
     assert loaded.gcal_ready and "RT-SEGRETO" in loaded.gcal_credentials
+
+
+def test_category_ids_and_set_category(repo):
+    a = repo.add(Reminder("A", D(2026, 11, 20, 9, 0), category="cretin"))
+    b = repo.add(Reminder("B", D(2026, 11, 21, 9, 0), category="cretin"))
+    c = repo.add(Reminder("C", D(2026, 11, 22, 9, 0), category="Lavoro"))
+    armed_before = repo.get(a.id).armed_from
+    ids = repo.ids_in_category("cretin")
+    assert sorted(ids) == sorted([a.id, b.id])
+    assert repo.set_category(ids, "") == 2
+    assert {r.title: r.category for r in repo.list()} == {"A": "", "B": "", "C": "Lavoro"}
+    # cambiare categoria non deve far riscattare gli avvisi
+    assert repo.get(a.id).armed_from == armed_before
+    assert repo.set_category([a.id], "  Amici ") == 1
+    assert repo.get(a.id).category == "Amici"
+    assert repo.set_category([], "X") == 0
+    assert repo.ids_in_category("non esiste") == []
+    assert c.id not in repo.ids_in_category("cretin")

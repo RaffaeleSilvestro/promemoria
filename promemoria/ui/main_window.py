@@ -9,7 +9,8 @@ from typing import Callable
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QHBoxLayout, QLabel, QLineEdit, QMainWindow, QStackedWidget, QVBoxLayout, QWidget,
+    QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMainWindow, QStackedWidget, QVBoxLayout,
+    QWidget,
 )
 
 from ..core import engine
@@ -58,6 +59,7 @@ class MainWindow(QMainWindow):
     data_changed = Signal()
     settings_requested = Signal()
     quit_requested = Signal()
+    categories_renamed = Signal(str, str)  # (vecchio, nuovo); nuovo "" = eliminata
 
     def __init__(self, repo, get_settings: Callable[[], Settings]) -> None:
         super().__init__()
@@ -75,6 +77,8 @@ class MainWindow(QMainWindow):
         self.sidebar.new_requested.connect(lambda: self.create())
         self.sidebar.settings_requested.connect(self.settings_requested.emit)
         self.sidebar.quit_requested.connect(self.quit_requested.emit)
+        self.sidebar.category_delete_requested.connect(self.delete_category)
+        self.sidebar.category_rename_requested.connect(self.rename_category)
 
         self.page_title = QLabel()
         self.page_title.setObjectName("PageTitle")
@@ -187,7 +191,7 @@ class MainWindow(QMainWindow):
         self.sidebar.set_categories(categories, cat_counts)
         if self.view.startswith("cat:") and self.view[4:] not in categories:
             self.view = "today"
-            self.sidebar.select("today")
+        self.sidebar.select(self.view)
 
         if self.view == "calendar":
             self.stack.setCurrentWidget(self.calendar_page)
@@ -352,6 +356,38 @@ class MainWindow(QMainWindow):
 
     def _undo_done(self, item: AgendaItem) -> None:
         engine.mark_done(self._repo, item, False)
+        self._changed()
+
+    # ---- categorie ---------------------------------------------------------------
+    def delete_category(self, name: str) -> None:
+        ids = self._repo.ids_in_category(name)
+        self._repo.set_category(ids, "")
+        self.categories_renamed.emit(name, "")
+        self._changed()
+        what = "1 promemoria" if len(ids) == 1 else f"{len(ids)} promemoria"
+        self.toast.show_message(f"🗑  Categoria «{name}» eliminata · {what} senza categoria",
+                                "Annulla", lambda: self._restore_category(ids, name, ""), ms=7000)
+
+    def rename_category(self, name: str) -> None:
+        new, ok = QInputDialog.getText(self, "Rinomina categoria",
+                                       f"Nuovo nome per «{name}»:", text=name)
+        new = new.strip()
+        if not ok or not new or new == name:
+            return
+        ids = self._repo.ids_in_category(name)
+        self._repo.set_category(ids, new)
+        self.categories_renamed.emit(name, new)
+        if self.view == f"cat:{name}":
+            self.view = f"cat:{new}"
+        self._changed()
+        self.toast.show_message(f"✎  «{name}» rinominata in «{new}»", "Annulla",
+                                lambda: self._restore_category(ids, name, new))
+
+    def _restore_category(self, ids: list[int], old: str, current: str) -> None:
+        self._repo.set_category(ids, old)
+        self.categories_renamed.emit(current, old)
+        if current and self.view == f"cat:{current}":
+            self.view = f"cat:{old}"
         self._changed()
 
     def _changed(self) -> None:
