@@ -292,6 +292,10 @@ def _setup_logging() -> None:
                                   backupCount=2, encoding="utf-8")
     logging.basicConfig(level=logging.INFO, handlers=[handler],
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Le librerie di rete/OAuth a livello INFO scrivono URL con codici di accesso:
+    # nel log teniamo solo i loro avvisi ed errori.
+    for noisy in ("google_auth_oauthlib", "google.auth", "urllib3", "requests_oauthlib"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     def log_unhandled(exc_type, exc, tb) -> None:
         # Un errore in un'azione non deve chiudere l'app: lo registriamo e basta.
