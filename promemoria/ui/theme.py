@@ -157,6 +157,10 @@ QPushButton#Primary {{ background: {p.primary}; color: {p.on_primary}; border: n
     font-weight: 600; }}
 QPushButton#Primary:hover {{ background: {p.primary_hover}; }}
 QPushButton#Primary:disabled {{ background: {p.border}; color: {p.muted}; }}
+QPushButton#DateField {{ background: {p.surface}; border: 1px solid {p.border};
+    border-radius: 8px; padding: 6px 10px; text-align: left; }}
+QPushButton#DateField:hover, QPushButton#DateField:focus {{ border: 1px solid {p.primary}; }}
+QPushButton#DateField:disabled {{ color: {p.muted}; background: {p.surface_alt}; }}
 QPushButton#Danger {{ color: {p.danger}; }}
 QPushButton#Ghost {{ background: transparent; border: none; color: {p.muted}; }}
 QPushButton#Ghost:hover {{ color: {p.text}; background: {p.surface_alt}; }}

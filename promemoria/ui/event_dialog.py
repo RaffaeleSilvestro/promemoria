@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from PySide6.QtCore import QDate, QDateTime, QLocale, Qt
+from PySide6.QtCore import QDate, QDateTime, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDateEdit, QDateTimeEdit, QDialog,
+    QCheckBox, QComboBox, QDialog,
     QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QMessageBox, QPlainTextEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget,
 )
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from ..core.formatting import DAYS_SHORT, FREQ_LABELS, PRIORITIES, format_offset
 from ..core.models import Channels, Recurrence, Reminder
 from ..core.settings import Settings
+from .date_picker import DatePicker, DateTimePicker
 
 ALERT_PRESETS = (0, 5, 10, 30, 60, 180, 1440, 2880, 10080)
 FREQ_ORDER = ("none", "daily", "weekly", "monthly", "yearly")
@@ -56,11 +57,8 @@ class EventDialog(QDialog):
         self.title = QLineEdit(base.title if reminder else default_title)
         self.title.setObjectName("QuickAdd")
         self.title.setPlaceholderText("Cosa devi ricordare?")
-        self.when = QDateTimeEdit(_to_qdt(base.start))
-        self.when.setLocale(QLocale(QLocale.Language.Italian))
-        self.when.setCalendarPopup(True)
-        self.when.setDisplayFormat("dddd d MMMM yyyy   HH:mm")
-        self.when.setMinimumWidth(280)
+        self.when = DateTimePicker(_to_qdt(base.start))
+        self.when.setMinimumWidth(320)
         self.notes = QPlainTextEdit(base.notes)
         self.notes.setPlaceholderText("Dettagli, indirizzo, link… (facoltativo)")
         self.notes.setFixedHeight(64)
@@ -166,9 +164,8 @@ class EventDialog(QDialog):
         self.until_check = QCheckBox("Fino al")
         self.until_check.setChecked(rec.until is not None)
         default_until = (rec.until or self.when.dateTime().toPython() + timedelta(days=365)).date()
-        self.until = QDateEdit(QDate(default_until.year, default_until.month, default_until.day))
-        self.until.setCalendarPopup(True)
-        self.until.setDisplayFormat("dd/MM/yyyy")
+        self.until = DatePicker(QDate(default_until.year, default_until.month, default_until.day),
+                                short=True)
 
         top = QHBoxLayout()
         top.addWidget(self.freq)
