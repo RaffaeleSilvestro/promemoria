@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.spec.bak
+.venv/
+venv/
+# dati e impostazioni personali vivono in %APPDATA%\Promemoria, mai nel repo
+*.db
+settings.json
+*.log
+*.spec
