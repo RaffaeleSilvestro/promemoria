@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QComboBox, QCompleter, QWidget
 
@@ -47,7 +47,6 @@ class CategoryPicker(QComboBox):
         edit = self.lineEdit()
         edit.setPlaceholderText("Nessuna · clicca ▾ per scegliere o scrivine una nuova")
         edit.setClearButtonEnabled(True)
-        edit.installEventFilter(self)
         completer = QCompleter(self._names, self)
         completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
@@ -66,11 +65,3 @@ class CategoryPicker(QComboBox):
 
     def setCurrentText(self, text: str) -> None:  # noqa: N802 (stile Qt)
         self.lineEdit().setText(text)
-
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt)
-        # clic sul campo vuoto = apri l'elenco (con testo scritto, il clic serve a modificarlo)
-        if (obj is self.lineEdit() and event.type() == QEvent.Type.MouseButtonPress
-                and not self.lineEdit().text() and self.count()):
-            self.showPopup()
-            return True
-        return super().eventFilter(obj, event)

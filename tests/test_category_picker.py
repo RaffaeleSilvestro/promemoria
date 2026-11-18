@@ -4,8 +4,8 @@ from datetime import datetime
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PySide6.QtCore import QEvent, QPointF, Qt  # noqa: E402
-from PySide6.QtGui import QMouseEvent  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from promemoria.core.settings import Settings  # noqa: E402
@@ -43,18 +43,14 @@ def test_typing_new_or_existing_category():
     assert picker.currentText() == ""
 
 
-def test_click_on_empty_field_opens_list(monkeypatch):
+def test_click_on_field_only_edits_text(monkeypatch):
     picker = CategoryPicker(["Casa"], "")
+    picker.show()
     opened = []
     monkeypatch.setattr(picker, "showPopup", lambda: opened.append(True))
-    press = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(5, 5), QPointF(5, 5),
-                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
-                        Qt.KeyboardModifier.NoModifier)
-    picker.eventFilter(picker.lineEdit(), press)
-    assert opened == [True]
-    picker.lineEdit().setText("Casa")
-    picker.eventFilter(picker.lineEdit(), press)
-    assert opened == [True]  # con testo scritto il clic serve a modificarlo
+    QTest.mouseClick(picker.lineEdit(), Qt.MouseButton.LeftButton)
+    assert opened == []  # l'elenco si apre solo dalla freccia ▾
+    assert picker.lineEdit().hasFocus() or not picker.isActiveWindow()
 
 
 def test_event_dialog_offers_existing_categories():
