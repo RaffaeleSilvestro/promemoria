@@ -4,6 +4,8 @@ from datetime import datetime
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+from PySide6.QtCore import QEvent, QPointF, Qt  # noqa: E402
+from PySide6.QtGui import QMouseEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from promemoria.core.settings import Settings  # noqa: E402
@@ -22,36 +24,48 @@ def test_merge_categories_dedupes_ignoring_case_and_sorts():
     assert merged == ["Amici", "Casa", "cretin", "lavoro", "Personale"]
 
 
-def test_chip_click_selects_category():
-    picker = CategoryPicker(["Casa", "Lavoro"], "")
-    assert picker.chip_names() == ["Nessuna", "Casa", "Lavoro"]
-    picker.chip("Lavoro").click()
+def test_dropdown_lists_existing_categories_and_selects():
+    picker = CategoryPicker(["Lavoro", "Casa"], "")
+    assert picker.names() == ["Casa", "Lavoro"]
+    assert picker.isEditable() and picker.currentText() == ""
+    picker.setCurrentIndex(1)  # scelta dall'elenco
     assert picker.currentText() == "Lavoro"
-    assert picker.chip("Lavoro").isChecked() and not picker.chip("Casa").isChecked()
-    picker.chip("Nessuna").click()
-    assert picker.currentText() == "" and picker.chip("Nessuna").isChecked()
 
 
 def test_typing_new_or_existing_category():
     picker = CategoryPicker(["Casa", "Lavoro"], "Casa")
-    assert picker.chip("Casa").isChecked()
-    picker.edit.setText("  lavoro ")
-    assert picker.chip("Lavoro").isChecked()          # riconosciuta anche in minuscolo
-    assert picker.currentText() == "Lavoro"            # usa il nome già esistente
-    picker.edit.setText("Palestra")
+    assert picker.currentText() == "Casa"
+    picker.lineEdit().setText("  lavoro ")
+    assert picker.currentText() == "Lavoro"  # usa il nome già esistente
+    picker.lineEdit().setText("Palestra")
     assert picker.currentText() == "Palestra"
-    assert not any(picker.chip(n).isChecked() for n in picker.chip_names())
+    picker.lineEdit().clear()
+    assert picker.currentText() == ""
+
+
+def test_click_on_empty_field_opens_list(monkeypatch):
+    picker = CategoryPicker(["Casa"], "")
+    opened = []
+    monkeypatch.setattr(picker, "showPopup", lambda: opened.append(True))
+    press = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(5, 5), QPointF(5, 5),
+                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                        Qt.KeyboardModifier.NoModifier)
+    picker.eventFilter(picker.lineEdit(), press)
+    assert opened == [True]
+    picker.lineEdit().setText("Casa")
+    picker.eventFilter(picker.lineEdit(), press)
+    assert opened == [True]  # con testo scritto il clic serve a modificarlo
 
 
 def test_event_dialog_offers_existing_categories():
     d = EventDialog(Settings(), default_start=datetime(2026, 12, 1, 9, 0), default_title="Prova",
                     categories=["cretin", "Lavoro"])
-    assert {"cretin", "Lavoro"} <= set(d.category.chip_names())
-    d.category.chip("cretin").click()
+    assert {"cretin", "Lavoro"} <= set(d.category.names())
+    d.category.setCurrentIndex(d.category.findText("cretin"))
     d._on_accept()
     assert d.result_reminder.category == "cretin"
     d2 = EventDialog(Settings(), default_start=datetime(2026, 12, 1, 9, 0), default_title="X",
                      categories=["Lavoro"])
-    d2.category.edit.setText("LAVORO")
+    d2.category.lineEdit().setText("LAVORO")
     d2._on_accept()
     assert d2.result_reminder.category == "Lavoro"

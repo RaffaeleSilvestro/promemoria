@@ -1,15 +1,13 @@
-"""Campo categoria: scrivi una nuova categoria o clicca una di quelle esistenti."""
+"""Campo categoria compatto: freccia ▾ per scegliere tra le esistenti, o scrivine una nuova."""
 from __future__ import annotations
 
 from typing import Iterable
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCompleter, QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import QComboBox, QCompleter, QWidget
 
 from .common import category_color
-from .flow_layout import FlowLayout
-
-NONE_LABEL = "Nessuna"
 
 
 def merge_categories(suggested: Iterable[str], used: Iterable[str]) -> list[str]:
@@ -22,66 +20,57 @@ def merge_categories(suggested: Iterable[str], used: Iterable[str]) -> list[str]
     return sorted(by_key.values(), key=str.lower)
 
 
-class CategoryPicker(QWidget):
+def _dot_icon(color: QColor) -> QIcon:
+    pix = QPixmap(12, 12)
+    pix.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(color)
+    p.drawEllipse(2, 2, 8, 8)
+    p.end()
+    return QIcon(pix)
+
+
+class CategoryPicker(QComboBox):
     def __init__(self, categories: list[str], current: str = "",
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)  # le nuove si salvano col promemoria
+        self.setMaxVisibleItems(12)
         self._names = merge_categories(categories, [])
         self._canonical = {n.lower(): n for n in self._names}
+        for name in self._names:
+            self.addItem(_dot_icon(category_color(name)), name)
 
-        self.edit = QLineEdit(current)
-        self.edit.setPlaceholderText("Scrivi una nuova categoria o clicca una di quelle qui sotto")
-        self.edit.setClearButtonEnabled(True)
-        completer = QCompleter(self._names, self.edit)
+        edit = self.lineEdit()
+        edit.setPlaceholderText("Nessuna · clicca ▾ per scegliere o scrivine una nuova")
+        edit.setClearButtonEnabled(True)
+        edit.installEventFilter(self)
+        completer = QCompleter(self._names, self)
         completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.edit.setCompleter(completer)
-        self.edit.textChanged.connect(self._sync)
+        self.setCompleter(completer)
+        self.setCurrentIndex(-1)
+        edit.setText(current)
+        self.setToolTip("Scegli una categoria dall'elenco oppure scrivine una nuova")
 
-        self._chips: dict[str, QPushButton] = {}
-        chips_box = QWidget()
-        flow = FlowLayout(chips_box)
-        for name in (NONE_LABEL, *self._names):
-            chip = QPushButton(name if name == NONE_LABEL else f"● {name}")
-            chip.setObjectName("Chip")
-            chip.setCheckable(True)
-            chip.setCursor(Qt.CursorShape.PointingHandCursor)
-            if name != NONE_LABEL:
-                chip.setStyleSheet(f"QPushButton {{ color: {category_color(name).name()}; }}")
-                chip.setToolTip(f"Usa la categoria «{name}»")
-            chip.clicked.connect(lambda _=False, n=name: self._choose(n))
-            self._chips[name] = chip
-            flow.addWidget(chip)
+    def names(self) -> list[str]:
+        return list(self._names)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-        layout.addWidget(self.edit)
-        layout.addWidget(chips_box)
-        self._sync()
-
-    # ---- API usata dal modulo ------------------------------------------------
     def currentText(self) -> str:  # noqa: N802 (stile Qt)
         """La categoria scelta; se esiste già (anche con maiuscole diverse) usa quel nome."""
-        typed = self.edit.text().strip()
+        typed = self.lineEdit().text().strip()
         return self._canonical.get(typed.lower(), typed)
 
     def setCurrentText(self, text: str) -> None:  # noqa: N802 (stile Qt)
-        self.edit.setText(text)
+        self.lineEdit().setText(text)
 
-    def chip(self, name: str) -> QPushButton:
-        return self._chips[name]
-
-    def chip_names(self) -> list[str]:
-        return list(self._chips)
-
-    # ---- interni ---------------------------------------------------------------
-    def _choose(self, name: str) -> None:
-        self.edit.setText("" if name == NONE_LABEL else name)
-        self._sync()  # anche se il testo non cambia, ripristina l'evidenziazione
-
-    def _sync(self) -> None:
-        typed = self.edit.text().strip()
-        match = NONE_LABEL if not typed else self._canonical.get(typed.lower())
-        for name, chip in self._chips.items():
-            chip.setChecked(name == match)
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt)
+        # clic sul campo vuoto = apri l'elenco (con testo scritto, il clic serve a modificarlo)
+        if (obj is self.lineEdit() and event.type() == QEvent.Type.MouseButtonPress
+                and not self.lineEdit().text() and self.count()):
+            self.showPopup()
+            return True
+        return super().eventFilter(obj, event)
