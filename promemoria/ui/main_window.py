@@ -319,6 +319,7 @@ class MainWindow(QMainWindow):
                      if day == now.date() else datetime.combine(day, time(9, 0)))
         settings = self._get_settings()
         dialog = EventDialog(settings, default_start=start, default_title=title,
+                             categories=self._used_categories(),
                              default_category=category,
                              default_channels=default_channels(settings), parent=self)
         if dialog.exec() and dialog.result_reminder:
@@ -329,7 +330,8 @@ class MainWindow(QMainWindow):
         return False
 
     def edit(self, item: AgendaItem) -> None:
-        dialog = EventDialog(self._get_settings(), reminder=item.reminder, parent=self)
+        dialog = EventDialog(self._get_settings(), reminder=item.reminder,
+                             categories=self._used_categories(), parent=self)
         if dialog.exec() and dialog.result_reminder:
             self._repo.update(dialog.result_reminder)
             self._changed()
@@ -359,6 +361,9 @@ class MainWindow(QMainWindow):
         self._changed()
 
     # ---- categorie ---------------------------------------------------------------
+    def _used_categories(self) -> list[str]:
+        return [r.category for r in self._repo.list() if r.category]
+
     def delete_category(self, name: str) -> None:
         ids = self._repo.ids_in_category(name)
         self._repo.set_category(ids, "")

@@ -49,6 +49,7 @@ DARK = Palette(
 
 _current: Palette = LIGHT
 CHECK_ICON = (Path(__file__).parent / "assets" / "check.svg").as_posix()
+CHEVRON_ICON = (Path(__file__).parent / "assets" / "chevron.svg").as_posix()
 
 
 def current() -> Palette:
@@ -145,6 +146,9 @@ QLineEdit#QuickAdd {{ font-size: 14px; padding: 11px 14px; border-radius: 12px; 
 QLineEdit#Search {{ border-radius: 16px; padding: 6px 14px; }}
 QComboBox::drop-down, QDateEdit::drop-down, QDateTimeEdit::drop-down {{
     border: none; width: 22px; }}
+QComboBox::down-arrow {{ image: url({CHEVRON_ICON}); width: 12px; height: 12px; }}
+QComboBox::drop-down {{ subcontrol-origin: padding; subcontrol-position: center right;
+    width: 24px; }}
 QComboBox QAbstractItemView {{ background: {p.surface}; border: 1px solid {p.border};
     selection-background-color: {p.primary_soft}; selection-color: {p.text}; padding: 4px; }}
 

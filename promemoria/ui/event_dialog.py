@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from ..core.formatting import DAYS_SHORT, FREQ_LABELS, PRIORITIES, format_offset
 from ..core.models import Channels, Recurrence, Reminder
 from ..core.settings import Settings
+from .category_picker import CategoryPicker, merge_categories
 from .date_picker import DatePicker, DateTimePicker
 
 ALERT_PRESETS = (0, 5, 10, 30, 60, 180, 1440, 2880, 10080)
@@ -37,7 +38,7 @@ class EventDialog(QDialog):
     def __init__(self, settings: Settings, reminder: Reminder | None = None,
                  default_start: datetime | None = None, default_title: str = "",
                  default_category: str = "", default_channels: Channels | None = None,
-                 parent: QWidget | None = None) -> None:
+                 categories: list[str] | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._existing = reminder
         self._settings = settings
@@ -62,11 +63,8 @@ class EventDialog(QDialog):
         self.notes = QPlainTextEdit(base.notes)
         self.notes.setPlaceholderText("Dettagli, indirizzo, link… (facoltativo)")
         self.notes.setFixedHeight(64)
-        self.category = QComboBox()
-        self.category.setEditable(True)
-        self.category.addItems(["", *settings.categories])
-        self.category.setCurrentText(base.category)
-        self.category.lineEdit().setPlaceholderText("Nessuna")
+        self.category = CategoryPicker(
+            merge_categories(settings.categories, categories or []), base.category)
 
         self._priority = base.priority
         self._priority_chips: dict[int, QPushButton] = {}
