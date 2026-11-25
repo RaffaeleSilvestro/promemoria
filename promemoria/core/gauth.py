@@ -11,6 +11,9 @@ from pathlib import Path
 SCOPES = ["https://www.googleapis.com/auth/calendar.app.created"]
 CLIENT_FILE_NAME = "google_client.json"
 LOGIN_TIMEOUT_S = 300
+EXPIRED_MESSAGE = ("Accesso a Google scaduto o revocato. Vai in Impostazioni → Google Calendar → "
+                   "Ricollega account Google. Se ricapita ogni 7 giorni, il progetto Google è "
+                   "ancora «in test»: pubblicalo prima di ricollegare.")
 
 
 class GAuthError(Exception):
@@ -64,12 +67,26 @@ def login(client_path: Path) -> str:
 
 def session(credentials_json: str):
     """Sessione HTTP autenticata (rinnova da sola il token di accesso)."""
+    from google.auth.exceptions import RefreshError, TransportError
     from google.auth.transport.requests import AuthorizedSession
     from google.oauth2.credentials import Credentials
+
+    class ReadableSession(AuthorizedSession):
+        """Traduce gli errori di rinnovo del token in errori gestiti dall'app."""
+
+        def request(self, *args, **kwargs):
+            try:
+                return super().request(*args, **kwargs)
+            except RefreshError as exc:
+                if exc.retryable:
+                    raise ConnectionError("Rinnovo dell'accesso a Google non riuscito") from exc
+                raise GAuthError(EXPIRED_MESSAGE) from exc
+            except TransportError as exc:
+                raise ConnectionError("Google non raggiungibile") from exc
 
     try:
         info = json.loads(credentials_json)
         creds = Credentials.from_authorized_user_info(info, SCOPES)
     except (ValueError, KeyError) as exc:
         raise GAuthError("Credenziali Google non valide: ricollega l'account") from exc
-    return AuthorizedSession(creds)
+    return ReadableSession(creds)

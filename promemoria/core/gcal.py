@@ -19,6 +19,7 @@ from typing import Any, Protocol
 from urllib.parse import quote
 
 from .formatting import PRIORITIES
+from .gauth import GAuthError
 from .models import Recurrence, Reminder
 
 API = "https://www.googleapis.com/calendar/v3"
@@ -30,6 +31,9 @@ SKIP_PAST_UNSYNCED = timedelta(days=1)
 _BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
 log = logging.getLogger(__name__)
+
+
+OFFLINE_MESSAGE = "Google Calendar non raggiungibile (rete?): riprovo più tardi"
 
 
 class GCalError(Exception):
@@ -208,8 +212,10 @@ def apply_plan(session: Session, calendar_id: str, plan: SyncPlan) -> SyncResult
                 result.errors.append(f"Google Calendar: eliminazione non riuscita ({resp.status_code})")
     except _AuthError:
         result.errors.append("Google Calendar: accesso scaduto o revocato, ricollega l'account nelle Impostazioni")
+    except GAuthError as exc:  # scaduto a metà: gli eventi già salvati restano registrati
+        result.errors.append(str(exc))
     except OSError:  # include gli errori di rete di requests
-        result.errors.append("Google Calendar non raggiungibile (rete?): riprovo più tardi")
+        result.errors.append(OFFLINE_MESSAGE)
     return result
 
 
@@ -219,6 +225,8 @@ def ensure_calendar(session: Session, calendar_id: str, tz: str) -> str:
         return _ensure_calendar(session, calendar_id, tz)
     except _AuthError:
         raise GCalError("Google ha rifiutato l'accesso: ricollega l'account") from None
+    except OSError as exc:
+        raise GCalError(OFFLINE_MESSAGE) from exc
 
 
 def _ensure_calendar(session: Session, calendar_id: str, tz: str) -> str:

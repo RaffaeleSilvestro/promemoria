@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 
 from promemoria.core import gcal
+from promemoria.core.gauth import GAuthError
 from promemoria.core.models import Channels, Recurrence, Reminder
 
 TZ = "Europe/Rome"
@@ -164,3 +165,25 @@ def test_ensure_calendar_reuses_or_creates():
                            ("POST", "/calendars"): FakeResp(200, {"id": "nuovo"})})
     assert gcal.ensure_calendar(missing, "old", TZ) == "nuovo"
     assert gcal.ensure_calendar(missing, "", TZ) == "nuovo"
+
+
+def test_expired_access_midway_keeps_saved_events():
+    class ExpiresAfterFirst(FakeSession):
+        def request(self, *args, **kwargs):
+            if self.calls:
+                raise GAuthError("Accesso a Google scaduto")
+            return super().request(*args, **kwargs)
+
+    plan = gcal.plan_sync([rem(1), rem(2)], {}, NOW, TZ, False)
+    result = gcal.apply_plan(ExpiresAfterFirst(), "cal", plan)
+    assert [s[0] for s in result.saved] == [1]  # non verra' creato due volte
+    assert result.errors == ["Accesso a Google scaduto"]
+
+
+def test_ensure_calendar_network_error_is_readable():
+    class Offline(FakeSession):
+        def request(self, *args, **kwargs):
+            raise ConnectionError("giu")
+
+    with pytest.raises(gcal.GCalError, match="non raggiungibile"):
+        gcal.ensure_calendar(Offline(), "cal", TZ)
