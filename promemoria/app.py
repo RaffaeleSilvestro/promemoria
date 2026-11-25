@@ -19,10 +19,10 @@ from .core.db import Repository
 from .core.models import Due
 from .core.settings import Settings, SettingsStore, default_data_dir
 from .ui import theme
+from .ui.alerts import AlertPresenter
 from .ui.common import AlarmSound, app_icon
 from .ui.gcal_sync import GCalSync
 from .ui.main_window import MainWindow
-from .ui.popup import ReminderPopup
 from .ui.settings_dialog import SettingsDialog
 
 TICK_MS = 10_000
@@ -69,7 +69,10 @@ class Controller(QObject):
             pass
         self._last_minute = None
         self.alarm = AlarmSound(self)
-        self._popups: list[ReminderPopup] = []
+        self.alerts = AlertPresenter(self.repo, lambda: self.settings, self.alarm, parent=self)
+        self.alerts.done.connect(self._on_done)
+        self.alerts.snoozed.connect(self._on_snooze)
+        app.aboutToQuit.connect(self.alerts.shutdown)
         self._jobs: list[_DeliveryJob] = []
 
         self.window = MainWindow(self.repo, lambda: self.settings)
@@ -210,7 +213,7 @@ class Controller(QObject):
             if not due.snoozed:
                 self._dispatch(due)
         if ch.popup or ch.sound or due.snoozed:
-            self._popup(due, sound=ch.sound)
+            self.alerts.present(due, sound=ch.sound)
         else:
             self.tray.showMessage(due.reminder.title, due.occurrence.strftime("%d/%m %H:%M"),
                                   QSystemTrayIcon.MessageIcon.Information, 8000)
@@ -224,25 +227,6 @@ class Controller(QObject):
     def _on_delivery_errors(self, errors: list) -> None:
         self.tray.showMessage("Invio notifica fallito", "\n".join(errors),
                               QSystemTrayIcon.MessageIcon.Warning, 15000)
-
-    def _popup(self, due: Due, sound: bool) -> None:
-        popup = ReminderPopup(due, self.settings.snooze_default, sound)
-        popup.done.connect(self._on_done)
-        popup.snoozed.connect(self._on_snooze)
-        popup.closed.connect(lambda _d, p=popup: self._on_popup_closed(p))
-        self._popups.append(popup)
-        if sound:
-            self.alarm.start()
-        popup.show()
-        popup.place(len(self._popups) - 1)
-        popup.raise_()
-        popup.activateWindow()
-
-    def _on_popup_closed(self, popup: ReminderPopup) -> None:
-        if popup.sound_on:
-            self.alarm.stop()
-        if popup in self._popups:
-            self._popups.remove(popup)
 
     def _on_done(self, due: Due) -> None:
         item = next(

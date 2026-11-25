@@ -41,7 +41,7 @@ Oppure doppio clic su `avvia.bat`. `python installa.py` crea logo e collegamenti
 - Calendario mensile con giorni evidenziati e lista del giorno; vista "Attività" (Oggi, prossimi 7/30 giorni, Scaduti, Completati)
 - Ricorrenze: giornaliere, settimanali (con giorni scelti), mensili, annuali, con intervallo e data finale
 - Più preavvisi per promemoria (all'ora, 5/10/30 min, 1/3 ore, 1/2 giorni, 1 settimana)
-- Popup in primo piano con Fatto / Posticipa; sveglia sonora ripetuta finché non chiudi il popup
+- Popup in primo piano con Fatto / Posticipa; sveglia sonora di 3 squilli (3 secondi). Con un gioco o un video a schermo intero il popup aspetta e non ruba il primo piano
 - Priorità, categorie, note, ricerca
 - Canali per ogni promemoria: popup, sveglia, email, Telegram (con 3 tentativi se manca la rete)
 

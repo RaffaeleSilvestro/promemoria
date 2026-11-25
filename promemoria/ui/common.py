@@ -1,6 +1,7 @@
 """Elementi grafici condivisi: icona, colori, suono sveglia."""
 from __future__ import annotations
 
+import logging
 from colorsys import hsv_to_rgb
 from zlib import crc32
 
@@ -36,27 +37,48 @@ def app_icon() -> QIcon:
     return _ICON
 
 
+ALARM_RINGS = 3
+RING_INTERVAL_MS = 1_000
+
+
 class AlarmSound(QObject):
-    """Suono ripetuto finché non viene fermato (sveglia)."""
+    """Tre squilli in tre secondi, poi silenzio: si ferma da solo."""
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self._rings = 0
         self._timer = QTimer(self)
-        self._timer.setInterval(1400)
-        self._timer.timeout.connect(self._beep)
-        self._users = 0
+        self._timer.setInterval(RING_INTERVAL_MS)
+        self._timer.timeout.connect(self._next)
 
-    def _beep(self) -> None:
-        if winsound is not None:
-            winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS | winsound.SND_ASYNC)
+    @staticmethod
+    def _play(alias: str | None) -> None:
+        if winsound is None:
+            return
+        flags = winsound.SND_ALIAS | winsound.SND_ASYNC if alias else winsound.SND_PURGE
+        try:
+            winsound.PlaySound(alias, flags)
+        except RuntimeError as exc:
+            logging.getLogger(__name__).warning("Suono non riprodotto: %s", exc)
+
+    def _ring(self) -> None:
+        self._rings += 1
+        self._play("SystemExclamation")
+
+    def _next(self) -> None:
+        if self._rings >= ALARM_RINGS:
+            self.stop()
+        else:
+            self._ring()
 
     def start(self) -> None:
-        self._users += 1
-        if self._users == 1:
-            self._beep()
-            self._timer.start()
+        if self._timer.isActive():
+            return  # sta già suonando: più promemoria insieme non allungano il suono
+        self._rings = 0
+        self._ring()
+        self._timer.start()
 
     def stop(self) -> None:
-        self._users = max(0, self._users - 1)
-        if self._users == 0:
+        if self._timer.isActive():
             self._timer.stop()
+            self._play(None)

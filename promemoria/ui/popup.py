@@ -35,6 +35,9 @@ class ReminderPopup(QDialog):
         color = theme.priority_color(r.priority)
         self.setWindowTitle(f"⏰ {r.title}")
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        # visibile e cliccabile, ma non ruba mai il primo piano ad altre app
+        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setFixedWidth(420)
 
